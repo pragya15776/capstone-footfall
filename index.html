@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Store Footfall and Conversion Pipeline</title>
+<style>
+:root{
+  box-sizing:border-box;
+  --bg:#f3f6f8; --ink:#14213d; --muted:#5b6778; --line:#d5dde5; --card:#ffffff;
+  --accent:#0f766e; --warn:#b45309; --bar:#c9d6e2;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0e1621;--ink:#e6edf5;--muted:#93a1b3;--line:#233246;--card:#152233;--accent:#2dd4bf;--warn:#fbbf24;--bar:#2b3f57}
+}
+:root[data-theme="dark"]{--bg:#0e1621;--ink:#e6edf5;--muted:#93a1b3;--line:#233246;--card:#152233;--accent:#2dd4bf;--warn:#fbbf24;--bar:#2b3f57}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:40px 20px 64px}
+h1{font:700 clamp(28px,5vw,42px)/1.15 Georgia,"Iowan Old Style",serif;margin:0 0 12px;max-width:20em}
+h2{font:700 22px/1.3 Georgia,"Iowan Old Style",serif;margin:48px 0 6px}
+p{margin:0 0 12px;max-width:62ch}
+.muted{color:var(--muted)}
+.finding{margin-top:28px;padding:22px;border-left:4px solid var(--warn);background:var(--card)}
+.finding strong{font-size:20px}
+.bars{margin-top:18px;display:grid;gap:12px}
+.row{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:12px}
+.track{height:26px;background:var(--bar);border-radius:3px;overflow:hidden}
+.fill{height:100%;background:var(--warn)}
+.row b{font-variant-numeric:tabular-nums}
+.row span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;margin-top:14px}
+table{width:100%;border-collapse:collapse;background:var(--card);min-width:560px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700;color:var(--muted);font-size:14px}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+ul{padding-left:20px;margin:10px 0}
+a{color:var(--accent)}
+a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Which hours lose the most shoppers?</h1>
+  <p class="muted">A pipeline on 12 stores over 90 days: raw files cleaned in Databricks, loaded into Snowflake, then queried for conversion rate by hour.</p>
+
+  <section class="finding" aria-labelledby="finding-h">
+    <strong id="finding-h">Conversion is lowest between 2 pm and 4 pm.</strong>
+    <p class="muted" style="margin-top:6px">Bills per visitor, sensor-verified hours only. Bars start at zero, so the gap between hours is small but consistent.</p>
+    <div class="bars" role="list">
+      <div class="row" role="listitem"><b>15:00</b><div class="track"><div class="fill" style="width:8.43%"></div></div><span>0.0843</span></div>
+      <div class="row" role="listitem"><b>16:00</b><div class="track"><div class="fill" style="width:8.47%"></div></div><span>0.0847</span></div>
+      <div class="row" role="listitem"><b>14:00</b><div class="track"><div class="fill" style="width:8.63%"></div></div><span>0.0863</span></div>
+    </div>
+  </section>
+
+  <h2>What each stage did</h2>
+  <p class="muted">Row counts come from the notebook and Snowflake runs.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Stage</th><th>Work done</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Bronze</td><td>Loaded raw footfall, store and bill files as they arrived</td><td class="n">12,960 footfall rows<br>12 stores<br>86,859 bills</td></tr>
+      <tr><td>Silver</td><td>Removed duplicate bills, bills from unknown stores and bills outside trading hours; marked offline and error sensor readings</td><td class="n">86,594 bills kept<br>265 removed</td></tr>
+      <tr><td>Gold</td><td>Built one row per store per hour with bills, revenue and conversion rate</td><td class="n">12,960 rows<br>540 with sensor offline</td></tr>
+      <tr><td>Snowflake</td><td>Loaded the gold table with COPY INTO, then ran it a second time to test for duplicates</td><td class="n">12,960 rows loaded<br>Second run: 0 files processed</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Data quality choices</h2>
+  <ul>
+    <li>Hours where the sensor was offline or returned an error have no footfall value, so they are left out of conversion rates instead of counted as zero.</li>
+    <li>The Snowflake load can be re-run safely: files already loaded are skipped.</li>
+  </ul>
+
+  <footer>
+    Stack: Databricks (PySpark), Snowflake (SQL).
+    Code and screenshots are in the GitHub repository for this project.
+  </footer>
+</main>
+</body>
+</html>
